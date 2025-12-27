@@ -1,0 +1,191 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="simple_obstacles_world">
+
+    <!-- ================= LIGHT & GROUND ================= -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- ================= BASIC OBSTACLES ================= -->
+
+    <!-- BOX 1 -->
+    <model name="box_obstacle_1">
+      <static>true</static>
+      <pose>1 0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.5 0.5 0.5</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.5 0.5 0.5</size></box>
+          </geometry>
+          <material><ambient>1 0 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- CYLINDER -->
+    <model name="cylinder_obstacle">
+      <static>true</static>
+      <pose>-1 0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.25</radius>
+              <length>0.5</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.25</radius>
+              <length>0.5</length>
+            </cylinder>
+          </geometry>
+          <material><ambient>0 0 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- WALL -->
+    <model name="wall_main">
+      <static>true</static>
+      <pose>0 2 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>4 0.2 1</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>4 0.2 1</size></box>
+          </geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================= EXTRA OBSTACLES ================= -->
+
+    <!-- BOX 2 -->
+    <model name="box_obstacle_2">
+      <static>true</static>
+      <pose>-2 1 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.6 0.4 0.5</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.6 0.4 0.5</size></box>
+          </geometry>
+          <material><ambient>0 1 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- PILLAR 1 -->
+    <model name="pillar_1">
+      <static>true</static>
+      <pose>2 -1 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.2</radius>
+              <length>1.0</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.2</radius>
+              <length>1.0</length>
+            </cylinder>
+          </geometry>
+          <material><ambient>0.8 0.8 0.2 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- PILLAR 2 -->
+    <model name="pillar_2">
+      <static>true</static>
+      <pose>-2 -2 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.2</radius>
+              <length>1.0</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.2</radius>
+              <length>1.0</length>
+            </cylinder>
+          </geometry>
+          <material><ambient>0.2 0.7 0.7 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- RAMP -->
+    <model name="ramp">
+      <static>true</static>
+      <pose>0 -3 0.15 0.3 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.5 1.0 0.3</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.5 1.0 0.3</size></box>
+          </geometry>
+          <material><ambient>0.4 0.2 0.1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================= ARUCO MARKERS ================= -->
+
+    <!-- ArUco Marker 1 -->
+    <include>
+      <uri>model://aruco_marker</uri>
+      <pose>1.8 1.2 0.01 0 0 1.57</pose>
+    </include>
+
+    <!-- ArUco Marker 2 -->
+    <include>
+      <uri>model://aruco_marker</uri>
+      <pose>-1.7 -0.8 0.01 0 0 0.78</pose>
+    </include>
+
+    <!-- ArUco Marker 3 -->
+    <include>
+      <uri>model://aruco_marker</uri>
+      <pose>0.5 -2.5 0.01 0 0 -1.57</pose>
+    </include>
+
+  </world>
+</sdf>
+
