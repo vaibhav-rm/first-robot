@@ -164,7 +164,8 @@ def generate_launch_description():
     # SLAM Toolbox (Jazzy+) is lifecycle-managed: autostart configure+activate
     # so it subscribes /scan and publishes /map without manual transitions.
     slam_lifecycle_manager = Node(
-        package='nav2_lifecycle_manager',
+        package='nav2_lifecycle_manager',        condition=IfCondition(PythonExpression(["'", mode, "' != 'idle'"])),
+
         executable='lifecycle_manager',
         name='lifecycle_manager_slam',
         output='screen',
