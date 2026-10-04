@@ -29,29 +29,61 @@ setup(
         (os.path.join('share', package_name, 'worlds'),
             glob('worlds/*.world')),
 
-        # ===== Gazebo ArUco model files =====
+        # Config files
+        (os.path.join('share', package_name, 'config'),
+            glob('config/*.yaml')),
 
-        # model.config and model.sdf
+        # RViz files
+        (os.path.join('share', package_name, 'rviz'),
+            glob('rviz/*.rviz')),
+
+        # Map files (saved maps: my_map.yaml/.pgm + posegraph)
+        (os.path.join('share', package_name, 'maps'),
+            glob('maps/*')),
+
+        # ===== Gazebo ArUco model files (base + ids 1-3) =====
         (os.path.join('share', package_name, 'models', 'aruco_marker'),
             glob('models/aruco_marker/model.*')),
-
-        # material scripts
-        (os.path.join(
-            'share', package_name, 'models', 'aruco_marker',
+        (os.path.join('share', package_name, 'models', 'aruco_marker',
             'materials', 'scripts'),
             glob('models/aruco_marker/materials/scripts/*')),
-
-        # textures (PNG)
-        (os.path.join(
-            'share', package_name, 'models', 'aruco_marker',
+        (os.path.join('share', package_name, 'models', 'aruco_marker',
             'materials', 'textures'),
             glob('models/aruco_marker/materials/textures/*')),
+
+        (os.path.join('share', package_name, 'models', 'aruco_marker_1'),
+            glob('models/aruco_marker_1/model.*')),
+        (os.path.join('share', package_name, 'models', 'aruco_marker_1',
+            'materials', 'scripts'),
+            glob('models/aruco_marker_1/materials/scripts/*')),
+        (os.path.join('share', package_name, 'models', 'aruco_marker_1',
+            'materials', 'textures'),
+            glob('models/aruco_marker_1/materials/textures/*')),
+
+        (os.path.join('share', package_name, 'models', 'aruco_marker_2'),
+            glob('models/aruco_marker_2/model.*')),
+        (os.path.join('share', package_name, 'models', 'aruco_marker_2',
+            'materials', 'scripts'),
+            glob('models/aruco_marker_2/materials/scripts/*')),
+        (os.path.join('share', package_name, 'models', 'aruco_marker_2',
+            'materials', 'textures'),
+            glob('models/aruco_marker_2/materials/textures/*')),
+
+        (os.path.join('share', package_name, 'models', 'aruco_marker_3'),
+            glob('models/aruco_marker_3/model.*')),
+        (os.path.join('share', package_name, 'models', 'aruco_marker_3',
+            'materials', 'scripts'),
+            glob('models/aruco_marker_3/materials/scripts/*')),
+        (os.path.join('share', package_name, 'models', 'aruco_marker_3',
+            'materials', 'textures'),
+            glob('models/aruco_marker_3/materials/textures/*')),
     ],
     install_requires=['setuptools'],
-    zip_safe=True,
-    maintainer='vaibhav',
-    maintainer_email='vaibhav@example.com',
-    description='Mobile robot with sensors and ArUco markers in Gazebo',
-    license='Apache License 2.0',
+    tests_require=['pytest'],
+    entry_points={
+        'console_scripts': [
+            'waypoint_navigator = myrobot_controller.waypoint_navigator:main',
+            'aruco_detector = myrobot_controller.aruco_detector:main',
+        ],
+    },
 )
-

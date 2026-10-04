@@ -1,191 +1,135 @@
-# 🤖 MyRobot Controller (ROS 2 + Gazebo)
+# MyRobot Controller (ROS 2 + Gazebo Sim)
 
-This repository contains a **ROS 2 (Humble) mobile robot simulation package** using **Gazebo Classic**.  
-It includes a custom differential-drive robot, multiple Gazebo worlds with obstacles, and **ArUco markers** for perception experiments.
+4-wheeled differential-drive robot simulation covering the full pipeline:
+**URDF -> world + ArUco -> SLAM -> EKF localisation -> Nav2 -> ArUco missions**.
 
-This project is intended for:
-- Learning ROS 2 + Gazebo integration
-- Mobile robot simulation
-- Teleoperation
-- Obstacle navigation
-- ArUco marker–based perception
+Stack: ROS 2 Humble, Gazebo Sim (Harmonic, `ros_gz_sim` / `ros_gz_bridge`),
+SLAM Toolbox, `robot_localization` EKF, Nav2, OpenCV ArUco.
 
----
-
-## 📁 Package Structure
+## Package structure
 
 ```
-
 myrobot_controller
-├── launch
-│   ├── my_robot.launch.py            # Launch robot in empty world
-│   └── my_robot.launchworld.py       # Launch robot in obstacle world
-├── models
-│   └── aruco_marker                  # Custom ArUco marker Gazebo model
-│       ├── materials
-│       │   ├── scripts
-│       │   │   └── aruco.material
-│       │   └── textures
-│       │       ├── aruco_0.png
-│       │       └── genarcu.py
-│       ├── model.config
-│       └── model.sdf
-├── urdf
-│   └── myrobot.urdf                  # Robot description (URDF)
-├── worlds
-│   ├── barrels.world
-│   ├── primitive_obstacles.world
-│   ├── simple_obstacles.world        # Main obstacle + ArUco world
-│   └── turtlebot3_world.world
-├── myrobot_controller
-│   └── **init**.py
-├── setup.py
-├── setup.cfg
-├── package.xml
-└── README.md
+├── urdf/myrobot.urdf               # box 0.6x0.4x0.2 + 4 wheels, diff-drive + IMU/GPS/lidar/depth-cam
+├── worlds/
+│   ├── simple_obstacles.world       # MAIN: walls/obstacles + 3 vertical ArUco boards
+│   ├── primitive_obstacles.world     # minimal box+cylinder test world
+│   └── turtlebot3_world.world        # upstream reference world
+├── models/
+│   ├── aruco_marker/                 # legacy single-marker model
+│   ├── aruco_marker_1/               # id=1 board at (2.5, 1.5)
+│   ├── aruco_marker_2/               # id=2 board at (-2.5, -1.0)
+│   └── aruco_marker_3/               # id=3 board at (1.5, -2.8)
+├── config/
+│   ├── mapper_params_mapping.yaml / mapper_params_localization.yaml
+│   ├── ekf_local.yaml (odom) / ekf_global.yaml (map) / navsat_transform.yaml
+│   └── nav2_params.yaml
+├── launch/
+│   ├── slam_ekf.launch.py            # CANONICAL: gz + EKF local+global + SLAM (mode:=mapping|localization)
+│   ├── slam_mapping.launch.py        # standalone SLAM node with mode:=mapping|localization
+│   ├── nav_mission.launch.py         # NAVIGATION: Nav2 + waypoint_navigator (3 waypoints, 3s halts)
+│   ├── nav2_mission.launch.py        # NAVIGATION WITH ARUCO: Nav2 + aruco chain via /Nav2_coordinates
+│   ├── my_robot.launchworld.py / my_robot.launch.py / slam_toolbox.launch.py  # compat wrappers
+├── myrobot_controller/
+│   ├── aruco_detector.py             # OpenCV detect + border + publish /Nav2_coordinates + /aruco/annotated_image
+│   └── waypoint_navigator.py         # Nav2 BasicNavigator: static waypoints + dynamic /Nav2_coordinates
+├── maps/                             # my_map.yaml/.pgm placeholder + README (replace with real map)
+└── rviz/slam.rviz
+```
 
-````
+## Robot topics (from `urdf/myrobot.urdf`)
 
----
+| Sensor / actuator | Topic | Type |
+|---|---|---|
+| cmd_vel (in) | `/cmd_vel` | geometry_msgs/Twist |
+| diff-drive odometry | `/wheel/odom` | nav_msgs/Odometry |
+| LiDAR (360 rays, 10 m) | `/scan` | sensor_msgs/LaserScan |
+| IMU (100 Hz) | `/imu/data` | sensor_msgs/Imu |
+| GPS | `/gps/fix` | sensor_msgs/NavSatFix |
+| RGB | `/camera/image_raw` | sensor_msgs/Image |
+| Depth | `/camera/depth_image` | sensor_msgs/Image |
+| Camera info / points | `/camera/camera_info`, `/camera/points` | sensor_msgs/CameraInfo / PointCloud2 |
+| EKF local (odom frame) | `/odometry/local` | nav_msgs/Odometry |
+| EKF global (map frame) | `/odometry/global`, `/gps/odom` | nav_msgs/Odometry |
+| ArUco next-goal | `/Nav2_coordinates` | geometry_msgs/Point |
+| ArUco annotated image | `/aruco/annotated_image` | sensor_msgs/Image |
 
-## 🚀 Features
+4-wheel layout: `rear_left/right_wheel_joint` are driven by the DiffDrive
+plugin (`wheel_separation 0.40`, `wheel_radius 0.10`); `front_*` are passive
+free-spinning wheels preserving the diff-drive kinematic model.
 
-- Custom **differential-drive robot**
-- Gazebo simulation with ROS 2 integration
-- Multiple simulation worlds:
-  - Empty world
-  - Obstacle-rich world
-- **ArUco marker models** placed at multiple locations
-- Keyboard teleoperation using `/cmd_vel`
-- Ready for perception, navigation, and SLAM experiments
+## What are ArUco markers? (research)
 
----
+ArUco = **Augmented Reality University of Cordoba** fiducial markers: square
+black-border patterns with an inner binary matrix encoding an id from a fixed
+dictionary (here `DICT_4X4_50`, ids 1-3). OpenCV `cv2.aruco` detects the quad,
+`drawDetectedMarkers` draws the border, and corner geometry gives pose. In this
+project each marker id encodes the coordinates of the *next* marker; the
+detector publishes them to `/Nav2_coordinates` so Nav2 chains
+marker 1 -> marker 2 -> marker 3 autonomously.
 
-## 🧩 Requirements
-
-- Ubuntu 22.04
-- ROS 2 Humble
-- Gazebo Classic (Gazebo 11)
-- Python 3
-
-### Install dependencies
-```bash
-sudo apt update
-sudo apt install ros-humble-gazebo-ros-pkgs \
-                 ros-humble-teleop-twist-keyboard
-````
-
----
-
-## 🔧 Build Instructions
-
-From your ROS 2 workspace root:
+## Build
 
 ```bash
-cd first-robot
+sudo apt install ros-humble-ros-gz-sim ros-humble-ros-gz-bridge \
+  ros-humble-slam-toolbox ros-humble-robot-localization \
+  ros-humble-nav2-bringup ros-humble-teleop-twist-keyboard \
+  ros-humble-cv-bridge python3-opencv
 colcon build --symlink-install
 source install/setup.bash
 ```
 
----
+## Task runs
 
-## ▶️ Running the Simulation
-
-### 1️⃣ Launch robot in an **empty world**
-
+### URDF + WORLD (spawn in obstacle + ArUco world)
 ```bash
-ros2 launch myrobot_controller my_robot.launch.py
+ros2 launch myrobot_controller slam_ekf.launch.py mode:=mapping
+# new terminal:
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p use_sim_time:=true
 ```
 
-This will:
-
-* Start Gazebo
-* Load an empty world
-* Spawn the robot
-* Start `robot_state_publisher`
-
----
-
-### 2️⃣ Launch robot in the **obstacle + ArUco world**
-
+### SLAM (mapping -> save map)
 ```bash
-ros2 launch myrobot_controller my_robot.launchworld.py
+ros2 launch myrobot_controller slam_ekf.launch.py mode:=mapping
+# drive with teleop to cover the world, then:
+ros2 run nav2_map_server map_saver_cli -f maps/my_map --ros-args -p use_sim_time:=true
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{name: '$(pwd)/maps/my_map'}"
 ```
 
-This will:
-
-* Load `simple_obstacles.world`
-* Spawn multiple obstacles (boxes, pillars, ramp, walls)
-* Place **3 ArUco markers** at different locations
-* Spawn the robot into the environment
-
----
-
-## 🎮 Teleoperation (Keyboard Control)
-
-Run in a **new terminal** while Gazebo is running:
-
+### LOCALISATION (no drift check)
 ```bash
-source /opt/ros/humble/setup.bash
-source ~/astra/ros2_ws/install/setup.bash
-
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
+ros2 launch myrobot_controller slam_ekf.launch.py mode:=localization map_file:=<abs>/maps/my_map
+ros2 topic echo /odometry/local --once
+ros2 topic echo /odometry/global --once
 ```
+Local EKF fuses wheel encoders + IMU (`odom` frame); global EKF fuses
+`odometry/local` + GPS (`/gps/odom` via navsat_transform) + IMU (`map` frame).
+SLAM Toolbox in `localization` mode localizes the LiDAR scan in the saved map.
 
-### Keyboard controls
-
-```
-w  → move forward
-s  → move backward
-a  → rotate left
-d  → rotate right
-x  → stop
-```
-
-The robot listens on:
-
-```
-/cmd_vel
-```
-
----
-
-## 🏷 ArUco Marker Model
-
-* Located in:
-
-  ```
-  models/aruco_marker
-  ```
-* Implemented as a thin static box with an ArUco texture
-* Loaded using:
-
-  ```xml
-  <uri>model://aruco_marker</uri>
-  ```
-* Can be detected using a simulated camera
-* Suitable for pose estimation and navigation tasks
-
----
-
-## 🧪 Useful Debug Commands
-
-Check velocity commands:
-
+### NAVIGATION (autonomous waypoints, 3 s halts)
 ```bash
-ros2 topic echo /cmd_vel
+# requires real maps/my_map.yaml first
+ros2 launch myrobot_controller nav_mission.launch.py
+# or give RViz "Nav2 Goal"s manually; waypoint_navigator.py also runs
+# 3 static waypoints (2.0,1.2) -> (-2.0,-0.8) -> (1.2,-2.2) with 3 s halts.
 ```
 
-Check odometry:
-
+### NAVIGATION WITH ARUCO
 ```bash
-ros2 topic echo /odom
+ros2 launch myrobot_controller nav2_mission.launch.py
+# robot drives to marker 1 approach (2.0,1.2); detector draws borders,
+# publishes marker-2 coords to /Nav2_coordinates; navigator chains to
+# marker 3; watch /aruco/annotated_image.
+ros2 topic echo /Nav2_coordinates
 ```
 
-List all active topics:
+## Useful debug commands
 
 ```bash
 ros2 topic list
+ros2 topic echo /cmd_vel
+ros2 topic echo /wheel/odom
+ros2 topic echo /scan --once
+ros2 topic echo /gps/fix --once
+ros2 topic echo /Nav2_coordinates
 ```
-
----

@@ -3,11 +3,23 @@
 <package format="3">
   <name>myrobot_controller</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>4-wheeled diff-drive robot: Gazebo Sim + SLAM Toolbox + EKF localisation + Nav2 + ArUco missions.</description>
   <maintainer email="vaibhav@todo.todo">vaibhav</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>ros_gz_sim</depend>
+  <depend>ros_gz_bridge</depend>
+  <depend>robot_localization</depend>
+  <depend>slam_toolbox</depend>
+  <depend>nav2_bringup</depend>
+  <depend>nav2_simple_commander</depend>
+  <depend>teleop_twist_keyboard</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

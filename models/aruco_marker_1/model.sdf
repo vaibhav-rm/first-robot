@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<sdf version="1.11">
+  <!-- ArUco marker board id=1: stand pole + textured board facing +X -->
+  <model name="aruco_marker_1">
+    <static>true</static>
+    <link name="link">
+      <!-- stand pole -->
+      <collision name="pole_collision">
+        <pose>0 0 0.3 0 0 0</pose>
+        <geometry><cylinder><radius>0.03</radius><length>0.6</length></cylinder></geometry>
+      </collision>
+      <visual name="pole_visual">
+        <pose>0 0 0.3 0 0 0</pose>
+        <geometry><cylinder><radius>0.03</radius><length>0.6</length></cylinder></geometry>
+        <material><diffuse>0.3 0.3 0.3 1</diffuse></material>
+      </visual>
+      <!-- board backing 0.5 x 0.05 x 0.5 at 0.75m -->
+      <collision name="board_collision">
+        <pose>0 0 0.75 0 0 0</pose>
+        <geometry><box><size>0.05 0.5 0.5</size></box></geometry>
+      </collision>
+      <visual name="board_back">
+        <pose>-0.014 0 0.75 0 0 0</pose>
+        <geometry><box><size>0.02 0.5 0.5</size></box></geometry>
+        <material><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+      <!-- ArUco textured face (+X side). Thin plane so camera sees marker_1.png -->
+      <visual name="marker_face">
+        <pose>0.001 0 0.75 0 0 0</pose>
+        <geometry><plane><normal>1 0 0</normal><size>0.4 0.4</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0 0 0 1</specular>
+          <pbr>
+            <metal>
+              <albedo_map>model://aruco_marker_1/materials/textures/marker_1.png</albedo_map>
+              <roughness>0.9</roughness>
+              <metalness>0.0</metalness>
+            </metal>
+          </pbr>
+          <script>
+            <uri>model://aruco_marker_1/materials/scripts</uri>
+            <uri>model://aruco_marker_1/materials/textures</uri>
+            <name>ArucoMarker1</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

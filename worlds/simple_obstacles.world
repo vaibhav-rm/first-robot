@@ -3,13 +3,63 @@
   <world name="simple_obstacles_world">
 
     <!-- ================= LIGHT & GROUND ================= -->
-    <include>
-      <uri>model://sun</uri>
-    </include>
+    <plugin
+      filename="gz-sim-physics-system"
+      name="gz::sim::systems::Physics">
+    </plugin>
+    <plugin
+      filename="gz-sim-sensors-system"
+      name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin
+      filename="gz-sim-user-commands-system"
+      name="gz::sim::systems::UserCommands">
+    </plugin>
+    <plugin
+      filename="gz-sim-scene-broadcaster-system"
+      name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
 
-    <include>
-      <uri>model://ground_plane</uri>
-    </include>
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.8 0.8 0.8 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
 
     <!-- ================= BASIC OBSTACLES ================= -->
 
@@ -167,23 +217,36 @@
     </model>
 
     <!-- ================= ARUCO MARKERS ================= -->
+    <!-- What are ArUco markers?
+         ArUco = Augmented Reality University of Cordoba markers.
+         Square fiducial markers (black border + binary matrix) from the
+         DICT_4X4_50 dictionary. OpenCV's aruco module detects them, draws a
+         border, and returns id + corners for pose estimation.
+         Mission chain: id=1 -> publishes coords of id=2 to /Nav2_coordinates,
+         id=2 -> coords of id=3, id=3 -> mission complete.
+         Boards are vertical (0.4m marker at 0.75m height) so the forward-facing
+         depth camera (0.30, 0, 0.20 on base_link) can see them.
+         Requires GZ_SIM_RESOURCE_PATH=<pkg>/models (set in slam_ekf.launch.py). -->
 
-    <!-- ArUco Marker 1 -->
+    <!-- ArUco Marker 1 (id=1) at (2.5, 1.5), facing robot start (0,0) -->
     <include>
-      <uri>model://aruco_marker</uri>
-      <pose>1.8 1.2 0.01 0 0 1.57</pose>
+      <uri>model://aruco_marker_1</uri>
+      <name>aruco_marker_1</name>
+      <pose>2.5 1.5 0 0 0 -2.60</pose>
     </include>
 
-    <!-- ArUco Marker 2 -->
+    <!-- ArUco Marker 2 (id=2) at (-2.5, -1.0), facing robot start -->
     <include>
-      <uri>model://aruco_marker</uri>
-      <pose>-1.7 -0.8 0.01 0 0 0.78</pose>
+      <uri>model://aruco_marker_2</uri>
+      <name>aruco_marker_2</name>
+      <pose>-2.5 -1.0 0 0 0 0.38</pose>
     </include>
 
-    <!-- ArUco Marker 3 -->
+    <!-- ArUco Marker 3 (id=3) at (1.5, -2.8), facing robot start -->
     <include>
-      <uri>model://aruco_marker</uri>
-      <pose>0.5 -2.5 0.01 0 0 -1.57</pose>
+      <uri>model://aruco_marker_3</uri>
+      <name>aruco_marker_3</name>
+      <pose>1.5 -2.8 0 0 0 2.06</pose>
     </include>
 
   </world>
