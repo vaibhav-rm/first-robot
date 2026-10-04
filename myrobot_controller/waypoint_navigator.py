@@ -110,7 +110,7 @@ def main(args=None):
     navigator_node = WaypointNavigator()
 
     # Wait for Nav2 to be fully active before sending goals
-    navigator_node.navigator.waitUntilNav2Active()
+    navigator_node.navigator.waitUntilNav2Active(localizer='slam_toolbox')
 
     run_static = bool(navigator_node.get_parameter('run_static_mission').value)
     if run_static:
