@@ -226,7 +226,8 @@
   </joint>
 
   <gazebo reference="depth_camera_link">
-    <sensor name="depth_camera" type="depth_camera">
+    <!-- rgbd_camera gives separate color (/camera/image) + depth (/camera/depth_image) topics -->
+    <sensor name="depth_camera" type="rgbd_camera">
       <topic>camera</topic>
       <gz_frame_id>depth_camera_link</gz_frame_id>
       <update_rate>30</update_rate>

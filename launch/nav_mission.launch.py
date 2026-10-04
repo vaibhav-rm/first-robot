@@ -72,9 +72,9 @@ def generate_launch_description():
             '/wheel/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
             '/world/simple_obstacles_world/model/my_robot/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model',
-            '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            '/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
         ],
         output='screen')
@@ -112,7 +112,7 @@ def generate_launch_description():
     # on /camera_info; relay to standard ROS names used by detector/Nav2.
     relay_image = Node(
         package='topic_tools', executable='relay',
-        arguments=['/camera', '/camera/image_raw'],
+        arguments=['/camera/image', '/camera/image_raw'],
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen')
     relay_info = Node(
