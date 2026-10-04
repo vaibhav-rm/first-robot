@@ -5,6 +5,8 @@
 
 Stack: ROS 2 Humble, Gazebo Sim (Harmonic, `ros_gz_sim` / `ros_gz_bridge`),
 SLAM Toolbox, `robot_localization` EKF, Nav2, OpenCV ArUco.
+Launches use `ParameterValue` + lifecycle-managed SLAM so they also run on
+ROS 2 Jazzy (mapping pass in this repo was validated headless on Jazzy).
 
 ## Package structure
 
@@ -33,7 +35,7 @@ myrobot_controller
 ├── myrobot_controller/
 │   ├── aruco_detector.py             # OpenCV detect + border + publish /Nav2_coordinates + /aruco/annotated_image
 │   └── waypoint_navigator.py         # Nav2 BasicNavigator: static waypoints + dynamic /Nav2_coordinates
-├── maps/                             # my_map.yaml/.pgm placeholder + README (replace with real map)
+├── maps/                             # REAL map: my_map.yaml/.pgm (Nav2) + .posegraph/.data (SLAM loc.)
 └── rviz/slam.rviz
 ```
 
@@ -74,6 +76,7 @@ marker 1 -> marker 2 -> marker 3 autonomously.
 sudo apt install ros-humble-ros-gz-sim ros-humble-ros-gz-bridge \
   ros-humble-slam-toolbox ros-humble-robot-localization \
   ros-humble-nav2-bringup ros-humble-teleop-twist-keyboard \
+  ros-humble-topic-tools ros-humble-nav2-lifecycle-manager \
   ros-humble-cv-bridge python3-opencv
 colcon build --symlink-install
 source install/setup.bash

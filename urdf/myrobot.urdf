@@ -302,7 +302,9 @@
   </joint>
 
   <gazebo reference="gps_link">
-    <sensor name="gps" type="navsat">
+    <!-- NOTE: SDF sensor type must be "gps" (not "navsat"); the bridge
+         converts gz.msgs.NavSat -> sensor_msgs/NavSatFix on /gps/fix -->
+    <sensor name="gps" type="gps">
       <topic>gps/fix</topic>
       <gz_frame_id>gps_link</gz_frame_id>
       <update_rate>10</update_rate>

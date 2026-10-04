@@ -15,11 +15,12 @@ Topics bridged from Gazebo Sim (gz -> ROS 2):
   /camera/image_raw, /camera/depth_image, /camera/camera_info, /camera/points, /clock
 """
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import ExecuteProcess, DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
 from launch.substitutions import LaunchConfiguration, Command, PythonExpression
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from ament_index_python.packages import get_package_share_directory
 import os
 
@@ -70,27 +71,25 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'use_sim_time': use_sim_time,
-            'robot_description': Command(['cat ', urdf_path])
+            'robot_description': ParameterValue(Command(['cat ', urdf_path]), value_type=str)
         }]
     )
 
-    # 3. Convert URDF to SDF (needed for correct sensor spawning in Gazebo Sim)
-    sdf_path = '/tmp/myrobot.sdf'
-    convert_urdf = ExecuteProcess(
-        cmd=['bash', '-c', f'gz sdf -p {urdf_path} > {sdf_path}'],
-        output='screen'
-    )
-
-    # 4. Spawn Robot in Gazebo using the converted SDF file
-    spawn_robot = Node(
-        package='ros_gz_sim',
-        executable='create',
-        arguments=[
-            '-name', 'my_robot',
-            '-file', sdf_path,
-            '-x', '0.0', '-y', '0.0', '-z', '0.3'
-        ],
-        output='screen'
+    # 4. Spawn Robot in Gazebo from robot_description topic
+    # Spawn from /robot_description topic (no URDF->SDF file conversion:
+    # file conversion lumps fixed joints and can drop <plugin> blocks).
+    spawn_robot = TimerAction(
+        period=5.0,
+        actions=[Node(
+            package='ros_gz_sim',
+            executable='create',
+            arguments=[
+                '-name', 'my_robot',
+                '-topic', 'robot_description',
+                '-x', '0.0', '-y', '0.0', '-z', '0.3'
+            ],
+            output='screen'
+        )]
     )
 
     # 5. EKF Local Node: fuses wheel encoders (wheel/odom) + IMU -> odom -> base_footprint
@@ -161,6 +160,18 @@ def generate_launch_description():
         ]
     )
 
+
+    # SLAM Toolbox (Jazzy+) is lifecycle-managed: autostart configure+activate
+    # so it subscribes /scan and publishes /map without manual transitions.
+    slam_lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_slam',
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time,
+                     'autostart': True,
+                     'node_names': ['slam_toolbox']}])
+
     # 10. RViz2
     rviz2 = Node(
         condition=UnlessCondition(headless),
@@ -194,6 +205,7 @@ def generate_launch_description():
             '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
             '/wheel/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            '/world/simple_obstacles_world/model/my_robot/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model',
             '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
@@ -201,6 +213,25 @@ def generate_launch_description():
         ],
         output='screen'
     )
+
+
+    # Canonical topic names: gz-sim publishes camera color on /camera and info
+    # on /camera_info; relay to standard ROS names used by detector/Nav2.
+    relay_image = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/camera', '/camera/image_raw'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+    relay_info = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/camera_info', '/camera/camera_info'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+    relay_joints = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/world/simple_obstacles_world/model/my_robot/joint_state', '/joint_states'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
 
     # Gazebo resource path so <uri>model://aruco_marker_N</uri> resolves
     model_path = os.path.join(pkg_share, 'models')
@@ -220,9 +251,11 @@ def generate_launch_description():
 
         gazebo,
         robot_state_publisher,
-        convert_urdf,
         spawn_robot,
         gz_bridge,
+        relay_image,
+        relay_info,
+        relay_joints,
 
         ekf_local_node,
         navsat_transform_node,
@@ -230,6 +263,7 @@ def generate_launch_description():
 
         slam_toolbox_mapping,
         slam_toolbox_localization,
+        slam_lifecycle_manager,
 
         rviz2,
         teleop

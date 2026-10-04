@@ -19,10 +19,11 @@ Prereqs:
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, SetEnvironmentVariable, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -48,18 +49,18 @@ def generate_launch_description():
     robot_state_publisher = Node(
         package='robot_state_publisher', executable='robot_state_publisher',
         parameters=[{'use_sim_time': use_sim_time,
-                     'robot_description': Command(['cat ', urdf_path])}],
+                     'robot_description': ParameterValue(Command(['cat ', urdf_path]), value_type=str)}],
         output='screen')
 
-    sdf_path = '/tmp/myrobot.sdf'
-    convert_urdf = ExecuteProcess(
-        cmd=['bash', '-c', f'gz sdf -p {urdf_path} > {sdf_path}'], output='screen')
-
-    spawn_robot = Node(
-        package='ros_gz_sim', executable='create',
-        arguments=['-name', 'my_robot', '-file', sdf_path,
-                   '-x', '0.0', '-y', '0.0', '-z', '0.3'],
-        output='screen')
+    # Spawn from /robot_description topic (no URDF->SDF file conversion:
+    # file conversion lumps fixed joints and can drop <plugin> blocks).
+    spawn_robot = TimerAction(
+        period=5.0,
+        actions=[Node(
+            package='ros_gz_sim', executable='create',
+            arguments=['-name', 'my_robot', '-topic', 'robot_description',
+                       '-x', '0.0', '-y', '0.0', '-z', '0.3'],
+            output='screen')])
 
     gz_bridge = Node(
         package='ros_gz_bridge', executable='parameter_bridge',
@@ -70,6 +71,7 @@ def generate_launch_description():
             '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
             '/wheel/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            '/world/simple_obstacles_world/model/my_robot/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model',
             '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
@@ -105,6 +107,25 @@ def generate_launch_description():
                      'halt_secs': 3.0}],
         output='screen')
 
+
+    # Canonical topic names: gz-sim publishes camera color on /camera and info
+    # on /camera_info; relay to standard ROS names used by detector/Nav2.
+    relay_image = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/camera', '/camera/image_raw'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+    relay_info = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/camera_info', '/camera/camera_info'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+    relay_joints = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/world/simple_obstacles_world/model/my_robot/joint_state', '/joint_states'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+
     set_model_path = SetEnvironmentVariable(
         'GZ_SIM_RESOURCE_PATH', os.path.join(pkg_share, 'models'))
 
@@ -113,7 +134,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('map', default_value=default_map_yaml,
                               description='Full path to saved map YAML (from mapping run)'),
-        gazebo, robot_state_publisher, convert_urdf, spawn_robot, gz_bridge,
+        gazebo, robot_state_publisher, spawn_robot, gz_bridge,
+        relay_image, relay_info, relay_joints,
         ekf_local_node,
         nav2_launch,
         navigator_node,

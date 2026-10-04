@@ -20,6 +20,8 @@
   <depend>nav2_bringup</depend>
   <depend>nav2_simple_commander</depend>
   <depend>teleop_twist_keyboard</depend>
+  <depend>topic_tools</depend>
+  <depend>nav2_lifecycle_manager</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

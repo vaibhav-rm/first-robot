@@ -33,6 +33,18 @@ def generate_launch_description():
     slam_mapping_params = os.path.join(pkg_share, 'config', 'mapper_params_mapping.yaml')
     slam_localization_params = os.path.join(pkg_share, 'config', 'mapper_params_localization.yaml')
 
+
+    # SLAM Toolbox (Jazzy+) is lifecycle-managed: autostart configure+activate
+    # so it subscribes /scan and publishes /map without manual transitions.
+    slam_lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_slam',
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time,
+                     'autostart': True,
+                     'node_names': ['slam_toolbox']}])
+
     slam_toolbox_mapping = Node(
         condition=IfCondition(PythonExpression(["'", mode, "' == 'mapping'"])),
         package='slam_toolbox',
@@ -63,4 +75,5 @@ def generate_launch_description():
                               description='Map path without extension (localization mode)'),
         slam_toolbox_mapping,
         slam_toolbox_localization,
+        slam_lifecycle_manager,
     ])
