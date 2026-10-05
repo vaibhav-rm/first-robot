@@ -46,6 +46,25 @@ class AutoExplorer(Node):
         self.declare_parameter('rear_clear_threshold', 0.45)
         self.rear_clear_threshold = float(self.get_parameter('rear_clear_threshold').value)
 
+        # Map-boundary keeping. SLAM Toolbox grows the occupancy grid without
+        # limit, so without these the robot wanders off past the last wall into
+        # featureless ground and the map inflates with empty unknown cells
+        # instead of gaining information.
+        self.declare_parameter('x_min', -3.5)
+        self.declare_parameter('x_max', 3.5)
+        self.declare_parameter('y_min', -4.0)
+        self.declare_parameter('y_max', 1.6)
+        self.x_min = float(self.get_parameter('x_min').value)
+        self.x_max = float(self.get_parameter('x_max').value)
+        self.y_min = float(self.get_parameter('y_min').value)
+        self.y_max = float(self.get_parameter('y_max').value)
+
+        # Pose after which we consider the run finished: stayed inside the
+        # bounds without a new obstacle seen for this long.
+        self.declare_parameter('idle_timeout', 45.0)
+        self.idle_timeout = float(self.get_parameter('idle_timeout').value)
+        self.time_since_new_obstacle = 0.0
+
         # State
         self.start_time = self.get_clock().now()
         self.last_loop_time = self.get_clock().now()
@@ -126,6 +145,13 @@ class AutoExplorer(Node):
                 if start_deg <= bearing < end_deg and r < best:
                     best = r
             return best
+
+        # Structure within a few metres means there is still something to
+        # learn. Only fully open surroundings count as "nothing to see".
+        if any(math.isfinite(s) and s < 4.0 for s in
+               (self.front, self.front_left, self.front_right,
+                self.left, self.right, self.rear)):
+            self.time_since_new_obstacle = 0.0
 
         # Front spans -25..+25 deg, diagonal quadrants 25..70 deg.
         self.front = sector(-25.0, 25.0)
@@ -216,6 +242,16 @@ class AutoExplorer(Node):
             f'turn={self.escape_turn_sign:+.0f}, rear={self.rear:.2f}m, '
             f'reversing={self.escape_reversing}')
 
+    def _inside_bounds(self):
+        return (self.x_min <= self.robot_x <= self.x_max and
+                self.y_min <= self.robot_y <= self.y_max)
+
+    def _steer_back_inside(self):
+        """Heading that points back toward the arena centre."""
+        cx = (self.x_min + self.x_max) / 2.0
+        cy = (self.y_min + self.y_max) / 2.0
+        return math.atan2(cy - self.robot_y, cx - self.robot_x)
+
     def _openness(self, diagonal, lateral):
         """Combine diagonal and lateral clearance into a comparable score."""
         diag = diagonal if math.isfinite(diagonal) else 5.0
@@ -295,16 +331,28 @@ class AutoExplorer(Node):
             self.cmd_pub.publish(cmd)
             return
 
-        # 2. Geofence: turn back toward the arena centre.
-        dist_from_origin = math.hypot(self.robot_x, self.robot_y)
-        if dist_from_origin > self.geofence_radius:
-            angle_to_origin = math.atan2(-self.robot_y, -self.robot_x)
-            angle_diff = self.normalize_angle(angle_to_origin - self.robot_yaw)
+        # 2. Boundary keeping: stay inside the arena so we keep seeing structure
+        # instead of driving into empty ground.
+        if not self._inside_bounds():
+            target = self._steer_back_inside()
+            angle_diff = self.normalize_angle(target - self.robot_yaw)
             if abs(angle_diff) > 0.3:
                 cmd.linear.x = 0.0
                 cmd.angular.z = self.turn_speed if angle_diff > 0 else -self.turn_speed
                 self.cmd_pub.publish(cmd)
                 return
+
+        # 3. Cooldown: if nothing new has been seen for a long time, we have
+        # covered the reachable area and further driving just inflates the map.
+        self.time_since_new_obstacle += dt
+        if self.time_since_new_obstacle > self.idle_timeout:
+            self.stop_robot()
+            self.timer.cancel()
+            self.get_logger().info(
+                f'Exploration complete: no new structure for '
+                f'{self.time_since_new_obstacle:.0f}s at '
+                f'({self.robot_x:.2f}, {self.robot_y:.2f})')
+            return
 
         # 3. Stuck detection.
         if self.update_stuck(dt):

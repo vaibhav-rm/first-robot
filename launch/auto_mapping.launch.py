@@ -141,7 +141,16 @@ def generate_launch_description():
                          'scan_topic': 'scan',
                          'stuck_timeout': 4.0,
                          'stuck_distance_threshold': 0.08,
-                         'rear_clear_threshold': 0.45}])])
+                         'rear_clear_threshold': 0.45,
+                         # Arena bounds: the world has a single wall at y=2
+                         # and open ground beyond, so without these the robot
+                         # drives into featureless space and the grid inflates
+                         # with unknown cells instead of gaining information.
+                         'x_min': -3.5,
+                         'x_max': 3.5,
+                         'y_min': -4.0,
+                         'y_max': 1.6,
+                         'idle_timeout': 45.0}])])
 
     # RViz2
     rviz2 = Node(
