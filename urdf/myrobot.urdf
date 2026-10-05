@@ -181,6 +181,11 @@
   </joint>
 
   <gazebo reference="lidar_link">
+    <!-- Must stay gpu_lidar: Gazebo Harmonic has no CPU ray lidar
+         ("Sensor type LIDAR not supported yet. Try using a GPU LIDAR
+         instead"), so type="ray" silently produces no /scan topic at all.
+         The all-inf readings were instead GPU contention, fixed by running
+         Gazebo headless (see launch/auto_mapping.launch.py). -->
     <sensor name="lidar" type="gpu_lidar">
       <topic>scan</topic>
       <gz_frame_id>lidar_link</gz_frame_id>
@@ -199,7 +204,7 @@
         </range>
       </lidar>
       <always_on>1</always_on>
-      <visualize>true</visualize>
+      <visualize>false</visualize>
     </sensor>
   </gazebo>
 

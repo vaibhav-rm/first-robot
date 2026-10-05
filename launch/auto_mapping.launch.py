@@ -7,6 +7,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable, TimerAction, ExecuteProcess
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
@@ -24,12 +25,22 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     duration = LaunchConfiguration('duration', default='300')  # 5 minutes
+    # RViz needs its own GL context, and the lidar is a gpu_lidar that traces
+    # rays through the render engine. On this box (AMD APU, 2GB shared graphics
+    # memory, Mesa software GL) running both makes the lidar run out of GPU
+    # memory and start publishing all-inf ranges, which silently produces a
+    # map with no walls in it. Default off; pass rviz:=true to watch it live.
+    use_rviz = LaunchConfiguration('rviz', default='false')
 
     # Gazebo Sim
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')),
-        launch_arguments=[('gz_args', '-r -v 4 ' + world_path)],
+        # -s forces server-only. Without it Gazebo still tries to bring up the
+        # GUI and dies on "could not connect to display" when run headless,
+        # which silently stops the sim and leaves every scan empty. -r runs
+        # paused=false, -v 4 is log verbosity.
+        launch_arguments=[('gz_args', '-s -r -v 4 ' + world_path)],
     )
 
     robot_state_publisher = Node(
@@ -146,11 +157,11 @@ def generate_launch_description():
                          # and open ground beyond, so without these the robot
                          # drives into featureless space and the grid inflates
                          # with unknown cells instead of gaining information.
-                         'x_min': -3.0,
-                         'x_max': 3.0,
-                         'y_min': -3.5,
-                         'y_max': 1.8,
-                         'idle_timeout': 45.0}])])
+                         'x_min': -2.7,
+                         'x_max': 2.7,
+                         'y_min': -3.2,
+                         'y_max': 1.6,
+                         'idle_timeout': 30.0}])])
 
     # RViz2, started only once Gazebo's /clock is already flowing.
     # With use_sim_time, a node that initialises before the first /clock
@@ -161,6 +172,7 @@ def generate_launch_description():
     # and an empty "No map received" display.
     rviz2 = TimerAction(
         period=20.0,
+        condition=IfCondition(use_rviz),
         actions=[Node(
             package='rviz2', executable='rviz2',
             arguments=['-d', rviz_config],
@@ -175,6 +187,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('duration', default_value='300',
                               description='Exploration duration in seconds'),
+        DeclareLaunchArgument('rviz', default_value='false',
+                              description='Launch RViz (needs its own GL context; competes with the gpu_lidar)'),
         gazebo, robot_state_publisher, spawn_robot, gz_bridge,
         relay_image, relay_info, relay_joints,
         ekf_local_node,

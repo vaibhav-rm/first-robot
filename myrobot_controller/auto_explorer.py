@@ -50,10 +50,10 @@ class AutoExplorer(Node):
         # limit, so without these the robot wanders off past the last wall into
         # featureless ground and the map inflates with empty unknown cells
         # instead of gaining information.
-        self.declare_parameter('x_min', -3.0)
-        self.declare_parameter('x_max', 3.0)
-        self.declare_parameter('y_min', -3.5)
-        self.declare_parameter('y_max', 1.8)
+        self.declare_parameter('x_min', -2.7)
+        self.declare_parameter('x_max', 2.7)
+        self.declare_parameter('y_min', -3.2)
+        self.declare_parameter('y_max', 1.6)
         self.x_min = float(self.get_parameter('x_min').value)
         self.x_max = float(self.get_parameter('x_max').value)
         self.y_min = float(self.get_parameter('y_min').value)
@@ -61,7 +61,7 @@ class AutoExplorer(Node):
 
         # Pose after which we consider the run finished: stayed inside the
         # bounds without a new obstacle seen for this long.
-        self.declare_parameter('idle_timeout', 45.0)
+        self.declare_parameter('idle_timeout', 30.0)
         self.idle_timeout = float(self.get_parameter('idle_timeout').value)
         self.time_since_new_obstacle = 0.0
 
@@ -99,6 +99,11 @@ class AutoExplorer(Node):
         self.escape_rotate_time = 1.5
         self.escape_reverse_time = 2.5
         self.escape_final_rotate_time = 1.5
+
+        # Consecutive-escape escalation, reset whenever the robot makes
+        # progress. See start_escape().
+        self.escape_attempts = 0
+        self.escape_reverse_time_now = self.escape_reverse_time
 
         # Post-escape commitment: don't immediately re-approach the trap.
         self.commit_timer = 0.0
@@ -209,6 +214,9 @@ class AutoExplorer(Node):
             self.stuck_timer = 0.0
             self.last_progress_x = self.robot_x
             self.last_progress_y = self.robot_y
+            # Real progress: the escalation counter is no longer needed, so the
+            # next stuck event starts from the base retreat again.
+            self.escape_attempts = 0
         return self.stuck_timer >= self.stuck_timeout
 
     def start_escape(self):
@@ -223,6 +231,10 @@ class AutoExplorer(Node):
         self.escape_mode = True
         self.escape_stage = 0
         self.escape_timer = self.escape_rotate_time
+        # Reset here, not only on escape exit. update_stuck() keeps returning
+        # True while the timer is over the limit, so without this the sequencer
+        # was re-entered on the very next tick and the stages never advanced.
+        self.stuck_timer = 0.0
 
         left_open = self._openness(self.front_left, self.left)
         right_open = self._openness(self.front_right, self.right)
@@ -234,13 +246,27 @@ class AutoExplorer(Node):
             # Ambiguous: use the side we already lean toward
             self.escape_turn_sign = self.wall_side
 
+        # Escalation. The robot spawns wedged between the box and the cylinder,
+        # and the log showed it re-wedging within 0.5m of the same spot over and
+        # over - one 1.5s rotate plus 2.5s reverse was not enough to actually
+        # clear the geometry. Each consecutive failure escalates the retreat and
+        # flips the turn direction, so repeated attempts cannot retrace the same
+        # blocked path. The counter resets as soon as real progress is made.
+        self.escape_attempts += 1
+        if self.escape_attempts > 1:
+            self.escape_turn_sign = -self.escape_turn_sign
+            self.escape_timer = self.escape_rotate_time * min(
+                self.escape_attempts, 3)
+        self.escape_reverse_time_now = self.escape_reverse_time * min(
+            self.escape_attempts, 3)
+
         # Only plan a reversing phase if the rear is genuinely clear.
         self.escape_reversing = self.can_reverse()
 
         self.get_logger().warn(
             f'Stuck at ({self.robot_x:.2f}, {self.robot_y:.2f}) - escaping: '
             f'turn={self.escape_turn_sign:+.0f}, rear={self.rear:.2f}m, '
-            f'reversing={self.escape_reversing}')
+            f'reversing={self.escape_reversing}, attempt={self.escape_attempts}')
 
     def _inside_bounds(self):
         return (self.x_min <= self.robot_x <= self.x_max and
@@ -288,22 +314,28 @@ class AutoExplorer(Node):
                 if self.escape_timer <= 0:
                     self.escape_stage = 1
                     if self.escape_reversing:
-                        self.escape_timer = self.escape_reverse_time
+                        self.escape_timer = self.escape_reverse_time_now
                     else:
                         # No room behind - go straight to realignment.
                         self.escape_timer = self.escape_final_rotate_time
 
             elif self.escape_stage == 1:
-                # Stage 2: back out while continuing to turn. This is the only
-                # stage that produces translation, so it is what actually
-                # breaks a wedge. Re-check the rear sector continuously: if
-                # something closes in behind, stop reversing immediately.
+                # Stage 2: translate out while turning. Translation is the
+                # whole point - a spin in place leaves the odom position
+                # unchanged, so stuck detection immediately re-fires and the
+                # robot loops forever.
+                #
+                # Prefer backing out, since the front is what wedged us. But
+                # when the rear is blocked, reversing is not an option, so arc
+                # FORWARD across the open side instead. That still produces
+                # the displacement that ends the wedge while steering the nose
+                # away from whatever we are touching.
                 if self.can_reverse():
                     cmd.linear.x = -0.15
                     cmd.angular.z = self.escape_turn_sign * self.turn_speed * 0.7
                 else:
-                    # Rear became blocked - halt and just keep turning.
-                    cmd.linear.x = 0.0
+                    # Rear blocked: arc forward and away rather than spinning.
+                    cmd.linear.x = self.forward_speed * 0.6
                     cmd.angular.z = self.escape_turn_sign * self.turn_speed
 
                 if self.escape_timer <= 0:
@@ -331,16 +363,26 @@ class AutoExplorer(Node):
             self.cmd_pub.publish(cmd)
             return
 
-        # 2. Boundary keeping: stay inside the arena so we keep seeing structure
-        # instead of driving into empty ground.
+        # 2. Boundary keeping. Checked before escape and wall-following, because
+        # escape drives deliberately (backwards, or forward while arcing) and
+        # used to be able to push the robot straight out past a bound - the log
+        # showed it parked at y=-3.35 when the bound was y_min=-3.2.
+        # Turns toward the centre first, then drives only while pointing
+        # roughly the right way, so it comes back rather than orbiting.
         if not self._inside_bounds():
             target = self._steer_back_inside()
             angle_diff = self.normalize_angle(target - self.robot_yaw)
             if abs(angle_diff) > 0.3:
                 cmd.linear.x = 0.0
                 cmd.angular.z = self.turn_speed if angle_diff > 0 else -self.turn_speed
-                self.cmd_pub.publish(cmd)
-                return
+            elif not self.is_blocked(self.front, margin=0.2):
+                cmd.linear.x = self.forward_speed
+                cmd.angular.z = 0.0
+            else:
+                cmd.linear.x = 0.0
+                cmd.angular.z = -self.turn_speed
+            self.cmd_pub.publish(cmd)
+            return
 
         # 3. Cooldown: if nothing new has been seen for a long time, we have
         # covered the reachable area and further driving just inflates the map.
@@ -414,17 +456,22 @@ class AutoExplorer(Node):
                 else:
                     cmd.angular.z = 0.1 * math.sin(elapsed * 0.7)
 
-        # Last-resort collision guard: never command forward into a closed sector.
-        if cmd.linear.x > 0 and self.is_blocked(self.front, margin=0.1):
-            cmd.linear.x = 0.0
-
-        # Honour the post-escape commitment window.
+        # Honour the post-escape commitment window, which drives forward
+        # regardless of what the wall-following branches above decided.
         if self.commit_timer > 0:
             self.commit_timer -= dt
             if self.is_blocked(self.front, margin=0.05):
                 self.commit_timer = 0.0
             else:
                 cmd.linear.x = self.forward_speed * self.commit_speed_scale
+
+        # Collision guard runs LAST so it also covers the commit window above.
+        # Previously the guard ran first and the commit branch then overwrote it,
+        # so for 3s after every escape the robot drove into a blocked front
+        # sector and immediately re-wedged - which is what the log showed as a
+        # stuck event every ~17s.
+        if cmd.linear.x > 0 and self.is_blocked(self.front, margin=0.1):
+            cmd.linear.x = 0.0
 
         self.cmd_pub.publish(cmd)
 
