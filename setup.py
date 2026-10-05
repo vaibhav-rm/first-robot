@@ -84,6 +84,7 @@ setup(
         'console_scripts': [
             'waypoint_navigator = myrobot_controller.waypoint_navigator:main',
             'aruco_detector = myrobot_controller.aruco_detector:main',
+            'auto_explorer = myrobot_controller.auto_explorer:main',
         ],
     },
 )

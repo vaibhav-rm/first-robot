@@ -16,6 +16,10 @@ so the forward camera can see each marker:
 Override with ROS param `waypoints` (flat list [x1,y1,x2,y2,...]).
 Set `run_static_mission:=false` to skip static waypoints and only serve
 /Nav2_coordinates (useful for pure ArUco-chained runs).
+
+Parameters:
+  localizer: 'slam_toolbox' | 'amcl' | 'auto' (default: 'auto')
+    Which localization backend to wait for before sending goals.
 """
 import time
 import threading
@@ -37,6 +41,10 @@ class WaypointNavigator(Node):
         self.declare_parameter('run_static_mission', True)
         self.declare_parameter('waypoints', [c for wp in DEFAULT_WAYPOINTS for c in wp])
         self.declare_parameter('halt_secs', 3.0)
+        self.declare_parameter('localizer', 'auto')  # 'slam_toolbox' | 'amcl' | 'auto'
+        self.declare_parameter('initial_pose_x', 0.0)
+        self.declare_parameter('initial_pose_y', 0.0)
+        self.declare_parameter('initial_pose_yaw', 0.0)
 
         self.callback_group = ReentrantCallbackGroup()
         self.navigator = BasicNavigator(node_name='basic_navigator')
@@ -50,6 +58,25 @@ class WaypointNavigator(Node):
             callback_group=self.callback_group,
         )
         self.get_logger().info('Waypoint Navigator initialized (static + /Nav2_coordinates)')
+
+    def wait_for_nav2_active(self):
+        """Wait for Nav2 to be active based on localizer parameter."""
+        localizer = str(self.get_parameter('localizer').value).lower()
+        if localizer == 'auto':
+            # Try to detect: check if AMCL or slam_toolbox is running
+            # Default to slam_toolbox for backward compatibility
+            localizer = 'slam_toolbox'
+            self.get_logger().info('Auto-detected localizer: slam_toolbox (default)')
+        self.get_logger().info(f'Waiting for Nav2 to be active (localizer: {localizer})...')
+        self.navigator.waitUntilNav2Active(localizer=localizer)
+
+    def set_initial_pose_from_params(self):
+        """Set initial pose from ROS parameters."""
+        x = float(self.get_parameter('initial_pose_x').value)
+        y = float(self.get_parameter('initial_pose_y').value)
+        yaw = float(self.get_parameter('initial_pose_yaw').value)
+        self.get_logger().info(f'Setting initial pose: ({x}, {y}, {yaw})')
+        self.set_initial_pose(x, y, yaw)
 
     def set_initial_pose(self, x, y, yaw=0.0):
         import math
@@ -109,8 +136,11 @@ def main(args=None):
     rclpy.init(args=args)
     navigator_node = WaypointNavigator()
 
+    # Set initial pose before waiting for Nav2 (helps AMCL converge)
+    navigator_node.set_initial_pose_from_params()
+
     # Wait for Nav2 to be fully active before sending goals
-    navigator_node.navigator.waitUntilNav2Active(localizer='slam_toolbox')
+    navigator_node.wait_for_nav2_active()
 
     run_static = bool(navigator_node.get_parameter('run_static_mission').value)
     if run_static:

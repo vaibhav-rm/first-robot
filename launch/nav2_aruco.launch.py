@@ -123,6 +123,19 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen')
 
+    # Canonical topic names: gz-sim publishes camera color on /camera and info
+    # on /camera_info; relay to standard ROS names used by detector/Nav2.
+    relay_image = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/camera/image', '/camera/image_raw'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+    relay_info = Node(
+        package='topic_tools', executable='relay',
+        arguments=['/camera_info', '/camera/camera_info'],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+
     # ---- ArUco detector ----
     aruco_node = Node(
         package='myrobot_controller', executable='aruco_detector',
@@ -137,7 +150,8 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time,
                      'run_static_mission': True,
                      'waypoints': [2.0, 1.2],
-                     'halt_secs': 3.0}],
+                     'halt_secs': 3.0,
+                     'localizer': 'slam_toolbox'}],
         output='screen')
 
     set_model_path = SetEnvironmentVariable(
@@ -153,6 +167,8 @@ def generate_launch_description():
         slam_lifecycle_manager,
         nav2_launch,
         rviz2,
+        relay_image,
+        relay_info,
         aruco_node,
         navigator_node,
     ])

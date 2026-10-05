@@ -103,7 +103,8 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time,
                      'run_static_mission': True,
                      'waypoints': [2.0, 1.2],
-                     'halt_secs': 3.0}],
+                     'halt_secs': 3.0,
+                     'localizer': 'amcl'}],
         output='screen')
 
 
