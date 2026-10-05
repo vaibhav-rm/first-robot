@@ -85,6 +85,7 @@ setup(
             'waypoint_navigator = myrobot_controller.waypoint_navigator:main',
             'aruco_detector = myrobot_controller.aruco_detector:main',
             'auto_explorer = myrobot_controller.auto_explorer:main',
+            'crop_map = myrobot_controller.crop_map:main',
         ],
     },
 )

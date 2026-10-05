@@ -153,14 +153,15 @@ def generate_launch_description():
                          'stuck_timeout': 4.0,
                          'stuck_distance_threshold': 0.08,
                          'rear_clear_threshold': 0.45,
-                         # Arena bounds: the world has a single wall at y=2
-                         # and open ground beyond, so without these the robot
-                         # drives into featureless space and the grid inflates
-                         # with unknown cells instead of gaining information.
-                         'x_min': -2.7,
-                         'x_max': 2.7,
-                         'y_min': -3.2,
-                         'y_max': 1.6,
+                         # Arena bounds, matched to the physical perimeter
+                         # walls in simple_obstacles.world (inner faces at
+                         # x=+-3.1, y=-3.5..2.7). Inset by ~0.25m so the
+                         # software bound is reached while the robot is still
+                         # clear of the wall rather than after scraping it.
+                         'x_min': -2.85,
+                         'x_max': 2.85,
+                         'y_min': -3.25,
+                         'y_max': 2.45,
                          'idle_timeout': 30.0}])])
 
     # RViz2, started only once Gazebo's /clock is already flowing.

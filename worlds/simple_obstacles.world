@@ -139,6 +139,77 @@
       </link>
     </model>
 
+    <!-- ================= ARENA ENCLOSURE =================
+         A closed perimeter. The explorer is limited in software, but a
+         software bound is advisory - the robot can and did drive out past
+         it, and once it reached featureless open ground there was nothing
+         left for the lidar to match against, so scan matching lost and the
+         pose graph drifted. The map ended up spanning x=-10.8m while the
+         robot was believed to be inside x=[-2.7, 2.7].
+
+         These walls make the arena physically closed, so the robot cannot
+         leave regardless of odometry or SLAM drift, and the lidar always
+         has geometry to match against. Inner size is 6.4m x 6.4m, which
+         maps to a ~128x128 cell grid at 0.05m/cell.
+
+         wall_main sits at y=2 spanning x=[-2,2], so the north wall is
+         placed at y=2.8 to leave a drivable gap behind it. -->
+    <model name="arena_wall_north">
+      <static>true</static>
+      <pose>0 2.8 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>7.2 0.2 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>7.2 0.2 1</size></box></geometry>
+          <material><ambient>0.55 0.45 0.35 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="arena_wall_south">
+      <static>true</static>
+      <pose>0 -3.6 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>7.2 0.2 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>7.2 0.2 1</size></box></geometry>
+          <material><ambient>0.55 0.45 0.35 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="arena_wall_east">
+      <static>true</static>
+      <pose>3.2 -0.4 0.5 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.6 0.2 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.6 0.2 1</size></box></geometry>
+          <material><ambient>0.55 0.45 0.35 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="arena_wall_west">
+      <static>true</static>
+      <pose>-3.2 -0.4 0.5 0 0 1.5708</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.6 0.2 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.6 0.2 1</size></box></geometry>
+          <material><ambient>0.55 0.45 0.35 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
     <!-- ================= EXTRA OBSTACLES ================= -->
 
     <!-- BOX 2 -->
