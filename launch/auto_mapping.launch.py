@@ -146,18 +146,26 @@ def generate_launch_description():
                          # and open ground beyond, so without these the robot
                          # drives into featureless space and the grid inflates
                          # with unknown cells instead of gaining information.
-                         'x_min': -3.5,
-                         'x_max': 3.5,
-                         'y_min': -4.0,
-                         'y_max': 1.6,
+                         'x_min': -3.0,
+                         'x_max': 3.0,
+                         'y_min': -3.5,
+                         'y_max': 1.8,
                          'idle_timeout': 45.0}])])
 
-    # RViz2
-    rviz2 = Node(
-        package='rviz2', executable='rviz2',
-        arguments=['-d', rviz_config],
-        parameters=[{'use_sim_time': use_sim_time}],
-        output='screen')
+    # RViz2, started only once Gazebo's /clock is already flowing.
+    # With use_sim_time, a node that initialises before the first /clock
+    # message falls back to wall time; when the simulated clock then arrives
+    # at t=0 RViz sees a ~2e9s backwards jump and resets itself. That reset
+    # loop repeats until the GL context dies and the process exits, which is
+    # what produces both the flood of "Detected jump back in time" warnings
+    # and an empty "No map received" display.
+    rviz2 = TimerAction(
+        period=20.0,
+        actions=[Node(
+            package='rviz2', executable='rviz2',
+            arguments=['-d', rviz_config],
+            parameters=[{'use_sim_time': use_sim_time}],
+            output='screen')])
 
     set_model_path = SetEnvironmentVariable(
         'GZ_SIM_RESOURCE_PATH', os.path.join(pkg_share, 'models'))

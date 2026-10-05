@@ -50,10 +50,10 @@ class AutoExplorer(Node):
         # limit, so without these the robot wanders off past the last wall into
         # featureless ground and the map inflates with empty unknown cells
         # instead of gaining information.
-        self.declare_parameter('x_min', -3.5)
-        self.declare_parameter('x_max', 3.5)
-        self.declare_parameter('y_min', -4.0)
-        self.declare_parameter('y_max', 1.6)
+        self.declare_parameter('x_min', -3.0)
+        self.declare_parameter('x_max', 3.0)
+        self.declare_parameter('y_min', -3.5)
+        self.declare_parameter('y_max', 1.8)
         self.x_min = float(self.get_parameter('x_min').value)
         self.x_max = float(self.get_parameter('x_max').value)
         self.y_min = float(self.get_parameter('y_min').value)

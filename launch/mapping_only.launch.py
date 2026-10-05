@@ -106,12 +106,18 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen')
 
-    # RViz2
-    rviz2 = Node(
-        package='rviz2', executable='rviz2',
-        arguments=['-d', rviz_config],
-        parameters=[{'use_sim_time': use_sim_time}],
-        output='screen')
+    # RViz2, started only once Gazebo's /clock is already flowing.
+    # With use_sim_time, a node that initialises before the first /clock
+    # message falls back to wall time; when the simulated clock then arrives
+    # at t=0 RViz sees a ~2e9s backwards jump and resets itself. That reset
+    # loop repeats until the GL context dies and the process exits.
+    rviz2 = TimerAction(
+        period=20.0,
+        actions=[Node(
+            package='rviz2', executable='rviz2',
+            arguments=['-d', rviz_config],
+            parameters=[{'use_sim_time': use_sim_time}],
+            output='screen')])
 
     set_model_path = SetEnvironmentVariable(
         'GZ_SIM_RESOURCE_PATH', os.path.join(pkg_share, 'models'))
